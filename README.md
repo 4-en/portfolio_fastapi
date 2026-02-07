@@ -1,2 +1,2 @@
-# portfolio_fastapi
-Basic portfolio and blog website with FastAPI
+# FastAPI Portfolio / Blog
+Basic blog and light portfolio website with FastAPI
