@@ -2,9 +2,7 @@
 
 {% block content %}
     <section class="intro">
-        <h1>HELLO_WORLD</h1>
-        <p>Welcome to my digital garden. I am a CS graduate and this is where I document my projects and thoughts.</p>
-        <hr>
+        {{ intro_content | safe }}
     </section>
 
     <section class="blog-list">

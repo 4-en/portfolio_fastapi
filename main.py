@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import markdown
 import secrets
+import os
 
 app = FastAPI()
 security = HTTPBasic()
@@ -54,12 +55,45 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return True
 
+# load markdown files from static/markdown and create routes for them
+blacklist_routes = ["/", "/post", "/admin"] 
+markdown_dir = "static/markdown"
+intro_content = ""
+markdown_files = []
+# load markdown files and routes recursively
+for root, dirs, files in os.walk(markdown_dir):
+    for file in files:
+        if file.endswith(".md"):
+            filepath = os.path.join(root, file)
+            route_path = "/" + os.path.relpath(filepath, markdown_dir).replace("\\", "/").replace(".md", "")
+            with open(filepath, "r", encoding="utf-8") as f:
+                md_content = f.read()
+                html_content = markdown.markdown(md_content)
+                if route_path == "/index":
+                    intro_content = html_content
+                else:
+                    markdown_files.append((route_path, html_content))
+                    
+top_level_routes = []
+for route, content in markdown_files:
+    
+    if route in blacklist_routes:
+        print(f"[!] Route '{route}' is blacklisted and will not be created for {filepath}.")
+        continue
+    
+    async def markdown_route(request: Request, content=content):
+        return templates.TemplateResponse("markdown.html", {"request": request, "content": content})
+    app.add_api_route(route, markdown_route, response_class=HTMLResponse)
+    
+    if route.count("/") == 1: # top level route like /about, not /docs/guide
+        top_level_routes.append(route)
+
 # --- PUBLIC ROUTES ---
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     with get_db_connection() as conn:
         posts = conn.execute("SELECT * FROM posts ORDER BY id DESC").fetchall()
-    return templates.TemplateResponse("index.html", {"request": request, "posts": posts})
+    return templates.TemplateResponse("index.html", {"request": request, "posts": posts, "intro_content": intro_content, "routes": top_level_routes})
 
 @app.get("/post/{post_id}", response_class=HTMLResponse)
 async def read_post(request: Request, post_id: int):

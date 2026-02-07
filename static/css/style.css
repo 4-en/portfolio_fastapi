@@ -1,8 +1,13 @@
 :root {
     --bg-color: #0d0d0d;
-    --text-color: #00ff41; /* Classic Matrix/Terminal Green */
+    --text-color: #00ff41;
     --accent-color: #008f11;
     --font-mono: 'Courier New', Courier, monospace;
+}
+
+/* Add this to ensure padding doesn't add to the width/height causing scrollbars */
+* {
+    box-sizing: border-box;
 }
 
 body {
@@ -10,10 +15,29 @@ body {
     color: var(--text-color);
     font-family: var(--font-mono);
     line-height: 1.6;
-    margin: 40px auto;
     max-width: 800px;
-    padding: 0 20px;
+    
+    /* --- CHANGED SECTION START --- */
+    /* 1. Make body a flex container */
+    display: flex;
+    flex-direction: column;
+    
+    /* 2. Force body to take full viewport height */
+    min-height: 100vh;
+    
+    /* 3. Adjust spacing: Move vertical margin to padding to prevent 
+          100vh + margin from creating a scrollbar */
+    margin: 0 auto;       
+    padding: 40px 20px;   
+    /* --- CHANGED SECTION END --- */
+
     text-shadow: 0 0 5px rgba(0, 255, 65, 0.2);
+}
+
+/* --- NEW RULE --- */
+/* This pushes the footer down by taking up all available space */
+main {
+    flex: 1;
 }
 
 a {
@@ -30,7 +54,14 @@ a:hover {
 header, footer {
     border: 1px solid var(--text-color);
     padding: 20px;
+    /* Margin-bottom is fine for header, but we usually remove it 
+       from footer so it sits flush at the bottom if desired */
     margin-bottom: 20px;
+}
+
+/* Remove margin from footer so it aligns perfectly at the bottom */
+footer {
+    margin-bottom: 0;
 }
 
 /* Retro Scanline Effect */
@@ -58,7 +89,7 @@ input, textarea {
 /* Admin Specifics */
 .admin-header {
     display: flex;
-    justify_content: space-between;
+    justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--text-color);
     padding-bottom: 10px;

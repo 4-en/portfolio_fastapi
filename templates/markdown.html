@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <article>
+        
+        
+        <div class="post-content">
+            {{ content | safe }}
+        </div>
+
+        <br><br>
+        <a href="/"><< RETURN_TO_ROOT</a>
+    </article>
+{% endblock %}
