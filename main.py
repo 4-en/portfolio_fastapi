@@ -13,6 +13,7 @@ import markdown
 import secrets
 import os
 import hashlib
+import asyncio
 
 app = FastAPI()
 security = HTTPBasic()
@@ -184,6 +185,14 @@ async def delete_post(post_id: int, auth: bool = Depends(authenticate)):
     with get_db_connection() as conn:
         conn.execute("DELETE FROM posts WHERE id = ?", (post_id,)).commit()
     return RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
+
+
+# middleware for latency simulation (for testing loading states in the UI)
+# @app.middleware("http")
+# async def add_latency(request: Request, call_next):
+#     await asyncio.sleep(0.5) # Simulate 500ms latency
+#     response = await call_next(request)
+#     return response
 
 
 if __name__ == "__main__":
