@@ -9,11 +9,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import Response
+from fastapi.responses import StreamingResponse
 import markdown
 import secrets
 import os
 import hashlib
-import asyncio
 
 app = FastAPI()
 security = HTTPBasic()
@@ -59,9 +60,6 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row # Allows accessing columns by name
     return conn
 
-# --- AUTH ---
-ADMIN_USER = "admin"
-ADMIN_PASS = "raspberry" 
 
 def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     is_user_ok = secrets.compare_digest(credentials.username, settings.admin_user)
@@ -115,6 +113,94 @@ for route, content in markdown_files:
             "name": route.strip("/"),
             "url": route.lower()
         })
+        
+        
+# --- Caching SETUP ---
+# middleware for caching
+MAX_STATIC_CACHE = 1000
+MAX_STATIC_FILE_SIZE = 1024 * 1024 * 1  # 1 MB -> max total cache size is 1 GB, but usually much less
+MAX_PAGE_CACHE = 1000
+
+import cachetools
+static_cache = cachetools.LRUCache(maxsize=MAX_STATIC_CACHE)
+page_cache = cachetools.LRUCache(maxsize=MAX_PAGE_CACHE)
+no_cache = cachetools.LRUCache(maxsize=MAX_STATIC_CACHE * 10) # separate cache to track non-cacheable items and avoid repeated processing
+
+@app.middleware("http")
+async def cache_middleware(request: Request, call_next):
+    
+    cache_key = request.url.path
+    
+    # 1. Filter non-cacheable requests
+    if (request.method != "GET" or 
+        request.url.path.startswith("/admin") or
+        request.url.query or
+        request.url.path.startswith("/api") or
+        cache_key in no_cache):
+        return await call_next(request)
+    
+    
+    is_static_request = cache_key.startswith("/static/")
+    active_cache = static_cache if is_static_request else page_cache
+
+    # 2. Check Cache
+    if cache_key in active_cache:
+        cached_data = active_cache[cache_key]
+        print(f"[CACHE] Serving {cache_key} from cache")
+        return Response(
+            content=cached_data["content"], 
+            media_type=cached_data["media_type"],
+            headers=cached_data["headers"]
+        )
+    
+    # 3. Get fresh response
+    response = await call_next(request)
+    
+    # check content length for static files, if too large, don't cache and add to no_cache to avoid repeated processing
+    if is_static_request:
+        content_length = response.headers.get("content-length")
+        if content_length and int(content_length) > MAX_STATIC_FILE_SIZE:
+            print(f"[CACHE] Not caching {cache_key} due to size {content_length} bytes")
+            no_cache[cache_key] = True
+            return response
+    
+    # Only cache successful 200 OK responses
+    if response.status_code == 200:
+        
+        headers = dict(response.headers)
+        
+        # consume the body to store it
+        body = b""
+        async for chunk in response.body_iterator:
+            body += chunk
+            if len(body) > MAX_STATIC_FILE_SIZE and is_static_request:
+                # bail out of caching if we exceed size limit while reading
+                print(f"[CACHE] Not caching {cache_key} due to size exceeding limit while reading")
+                no_cache[cache_key] = True
+                
+                async def remaining_stream():
+                    yield body
+                    async for chunk in response.body_iterator:
+                        yield chunk
+                return StreamingResponse(remaining_stream(), media_type=response.media_type, headers=headers)
+        
+        # Check size limits for static files
+        if is_static_request and len(body) > MAX_STATIC_FILE_SIZE:
+            return Response(content=body, media_type=response.media_type, headers=headers)
+
+        # Store in cache
+        active_cache[cache_key] = {
+            "content": body,
+            "headers": headers,
+            "media_type": response.media_type
+        }
+        
+        # Return a new response because we exhausted the original iterator
+        return Response(content=body, media_type=response.media_type, headers=headers)
+
+    return response
+    
+    
 
 # --- PUBLIC ROUTES ---
 @app.get("/", response_class=HTMLResponse)
@@ -160,6 +246,7 @@ async def new_post_form(request: Request, auth: bool = Depends(authenticate)):
 async def edit_post_form(request: Request, post_id: int, auth: bool = Depends(authenticate)):
     with get_db_connection() as conn:
         post = conn.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
+        
     return templates.TemplateResponse("admin_editor.html", {"request": request, "post": post})
 
 # 4. Save Action (Handle both Create and Update)
@@ -174,9 +261,18 @@ async def save_post(
     with get_db_connection() as conn:
         if id: # Update existing
             conn.execute("UPDATE posts SET title = ?, content = ? WHERE id = ?", (title, content, id))
+            
+            # invalidate cache for this post
+            cache_key = f"/post/{id}"
+            if cache_key in page_cache:
+                del page_cache[cache_key]
+            
         else: # Create new
             conn.execute("INSERT INTO posts (title, content) VALUES (?, ?)", (title, content))
         conn.commit()
+        
+    if "/" in page_cache:
+        del page_cache["/"]  # Invalidate homepage cache to show new/updated post
     return RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
 
 # 5. Delete Action
@@ -184,6 +280,15 @@ async def save_post(
 async def delete_post(post_id: int, auth: bool = Depends(authenticate)):
     with get_db_connection() as conn:
         conn.execute("DELETE FROM posts WHERE id = ?", (post_id,)).commit()
+        
+    # invalidate cache for this post
+    cache_key = f"/post/{post_id}"
+    if cache_key in page_cache:
+        del page_cache[cache_key]
+        
+    if "/" in page_cache:
+        del page_cache["/"]  # Invalidate homepage cache to remove deleted post
+        
     return RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
 
 

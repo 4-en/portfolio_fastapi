@@ -27,7 +27,7 @@ def get_parser():
     return parser
 
 def init_auto_config(args):
-    config = SiteConfig()
+    config = SiteConfig.create_default()
     
     # Override defaults with provided arguments
     if args.title:
@@ -72,7 +72,7 @@ def get_input(prompt, default=None, check_func=None, requirements_info=None):
   
 
 def init_manual_config(args):
-    config = SiteConfig()
+    config = SiteConfig.create_default()
     
     
     
