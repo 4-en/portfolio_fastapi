@@ -4,3 +4,4 @@ Jinja2
 colorama
 cachetools
 markdown
+python-multipart
