@@ -73,7 +73,8 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     is_pass_ok = secrets.compare_digest(hashed_pass, settings.admin_pass)
     
     if not (is_user_ok and is_pass_ok):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+        # send to login page with 401 status
+        return RedirectResponse(url="/admin/login", status_code=status.HTTP_303_SEE_OTHER)
     return True
 
 
@@ -251,6 +252,10 @@ async def impressum(request: Request):
 async def privacy(request: Request):
     return templates.TemplateResponse("privacy.html", {"request": request, "routes": top_level_routes})
 # --- ADMIN ROUTES ---
+
+@app.get("/admin/login", response_class=HTMLResponse)
+async def admin_login(request: Request):
+    return templates.TemplateResponse("admin_login.html", {"request": request})
 
 # 1. Dashboard (List all posts)
 @app.get("/admin", response_class=HTMLResponse)
