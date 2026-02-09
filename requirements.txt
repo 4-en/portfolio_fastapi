@@ -5,3 +5,4 @@ colorama
 cachetools
 markdown
 python-multipart
+itsdangerous
