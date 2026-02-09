@@ -22,7 +22,6 @@ async function preload(url) {
 async function navigate(url) {
     let html = cache.get(url);
     
-    // If not in cache (user clicked too fast), fetch it now
     if (!html) {
         const res = await fetch(url);
         html = await res.text();
@@ -30,19 +29,58 @@ async function navigate(url) {
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
-    const newContent = doc.querySelector('main').innerHTML;
-    const newTitle = doc.querySelector('title').innerText;
 
-    // Update the DOM
-    document.querySelector('main').innerHTML = newContent;
-    document.title = newTitle;
-    window.history.pushState({ url }, newTitle, url);
-    
-    // Re-scroll to top
+    // 1. Update the Head (styles, meta, title)
+    updateHead(doc);
+
+    // 2. Update the Content
+    const newContent = doc.querySelector('main').innerHTML;
+    const mainContainer = document.querySelector('main');
+    mainContainer.innerHTML = newContent;
+
+    // 3. Manually execute scripts in the new content
+    executeScripts(mainContainer);
+
+    // 4. History and Scroll
+    document.title = doc.querySelector('title').innerText;
+    window.history.pushState({ url }, document.title, url);
     window.scrollTo(0, 0);
     
-    // Re-bind listeners for new links in the swapped content
     initLinks();
+}
+
+function executeScripts(container) {
+    const scripts = container.querySelectorAll("script");
+    scripts.forEach(oldScript => {
+        const newScript = document.createElement("script");
+        
+        // Copy all attributes (src, type, etc.)
+        Array.from(oldScript.attributes).forEach(attr => {
+            newScript.setAttribute(attr.name, attr.value);
+        });
+
+        // Copy the inline code if there is no src
+        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+        
+        // remove old script
+        oldScript.parentNode.removeChild(oldScript);
+
+        // Append the new script to the container
+        container.appendChild(newScript);
+    });
+}
+
+function updateHead(newDoc) {
+    const currentHead = document.head;
+    const newHead = newDoc.head;
+
+    // This is a simple version: add things from newHead that aren't in currentHead
+    // Better: use a library or a more complex diffing logic for CSS/Meta tags
+    const newStyles = newHead.querySelectorAll('link[rel="stylesheet"], style');
+    newStyles.forEach(style => {
+        // Simple check to avoid duplicates (could be improved with href checks)
+        currentHead.appendChild(style.cloneNode(true));
+    });
 }
 
 function initLinks() {
@@ -53,6 +91,7 @@ function initLinks() {
     document.querySelectorAll('a').forEach(link => {
         const url = link.href;
 
+        if (cache.has(url)) return; // Already preloaded
         if (!url) return;
         if (url.startsWith('mailto:') || url.startsWith('tel:')) return;
         if (url.startsWith('http') && !url.startsWith(window.location.origin)) return;
