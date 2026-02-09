@@ -98,15 +98,7 @@ input, textarea {
 /* Social Links Layout */
 .social-links a {
     position: relative;
-    margin-right: 8px;
     display: inline-block;
-}
-
-.social-links a:not(:last-child)::after {
-    content: "|";
-    position: absolute;
-    right: -14px;
-    pointer-events: none;
 }
 
 .uncrawl {
