@@ -13,7 +13,6 @@ function instant_main() {
             const res = await fetch(url);
             const html = await res.text();
             cache.set(url, html);
-            console.log(`[SYSTEM] Preloaded: ${url}`);
         } catch (e) {
             console.error(`[ERROR] Failed to preload: ${url}`);
         }
@@ -26,8 +25,9 @@ function instant_main() {
         let html = cache.get(url);
         
         if (!html) {
-            const res = await fetch(url);
-            html = await res.text();
+            console.warn(`[WARNING] No preloaded content for: ${url}, falling back to full page load.`);
+            window.location.href = url;
+            return;
         }
 
         const parser = new DOMParser();
@@ -42,12 +42,12 @@ function instant_main() {
 
         // if either newContent or mainContainer is missing, fallback to full page load
         if (!newContent || !mainContainer) {
-            //window.location.href = url;
+            window.location.href = url;
             console.warn(`[WARNING] Missing content for: ${url}, falling back to full page load.`);
             return;
         }
 
-        console.log(`[SYSTEM] Navigating to preload: ${url}`);
+
 
         mainContainer.innerHTML = newContent;
 
@@ -59,9 +59,7 @@ function instant_main() {
         window.history.pushState({ url }, document.title, url);
         window.scrollTo(0, 0);
         
-        setTimeout(() => {
-            initLinks();
-        }, 100);
+        initLinks();
     }
 
     function executeScripts(container) {
@@ -100,15 +98,14 @@ function instant_main() {
 
     function initLinks() {
 
-        console.log(`[SYSTEM] Initializing links for instant navigation...`);
-
         // disable for mobile devices (where hover doesn't exist and preloading can be more expensive)
         if (/Mobi|Android/i.test(navigator.userAgent)) return;
 
         document.querySelectorAll('a').forEach(link => {
             const url = link.href;
 
-            if (cache.has(url)) return; // Already preloaded
+
+
             if (!url) return;
             if (url.startsWith('mailto:') || url.startsWith('tel:')) return;
             if (url.startsWith('http') && !url.startsWith(window.location.origin)) return;
