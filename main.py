@@ -119,36 +119,81 @@ async def universal_exception_handler(request: Request, exc: Exception):
     return get_error_page(request, 500, "Internal Server Error")
 
 
-# --- MARKDOWN LOADING (Existing logic) ---
-blacklist_routes = ["/", "/post", "/admin", "/login", "/logout"] 
-markdown_dir = "static/markdown"
+# --- STATIC PAGE LOADING (Existing logic) ---
+RESERVED_ROUTES = ["/post", "/admin", "/login", "/logout", "/impressum", "/privacy"]
+PAGES_DIR = "static/pages"
+PAGES_FILETYPES = [".md", ".html", ".txt"]
 intro_content = ""
-markdown_files = []
+pages_files = {}
 top_level_routes = []
 
-for root, dirs, files in os.walk(markdown_dir):
+for root, dirs, files in os.walk(PAGES_DIR):
     for file in files:
-        if file.endswith(".md"):
-            filepath = os.path.join(root, file)
-            route_path = "/" + os.path.relpath(filepath, markdown_dir).replace("\\", "/").replace(".md", "")
-            with open(filepath, "r", encoding="utf-8") as f:
-                md_content = f.read()
-                html_content = markdown.markdown(md_content)
-                if route_path == "/index":
-                    intro_content = html_content
-                else:
-                    markdown_files.append((route_path, html_content))
+        
+        # check if in correct filetypes
+        filetype = os.path.splitext(file)[1]
+        if not filetype:
+            # print(f"[!] Skipping file with no extension: {file}")
+            continue
+        filetype = filetype.lower()
+        if filetype not in PAGES_FILETYPES:
+            print(f"[!] Skipping unsupported file type: {file}")
+            continue
+        
 
-for route, content in markdown_files:
-    if route in blacklist_routes:
-        continue
+        
+        template = True
+        content = ""
+        full_path = os.path.join(root, file)
+        rel_path = os.path.relpath(full_path, PAGES_DIR)
+        route_path = "/" + rel_path.replace("\\", "/").replace(filetype, "")
+        
+        # TODO: add a better check. Too many false positives with this one. 
+        if any([route_path.startswith(reserved) for reserved in RESERVED_ROUTES]):
+            print(f"[!] Skipping file '{file}' because its route '{route_path}' conflicts with reserved routes.")
+            continue
+        
+        if route_path in pages_files:
+            print(f"[!] Skipping file '{file}' because its route '{route_path}' conflicts with an existing page.")
+            continue
+        
+        match filetype:
+            case ".md":
+                with open(full_path, "r", encoding="utf-8") as f:
+                    md_content = f.read()
+                    content = markdown.markdown(md_content)
+            case ".html":
+                with open(full_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                template = "<body>" not in content.lower()  # If it has a body tag, serve as-is
+            case ".txt":
+                with open(full_path, "r", encoding="utf-8") as f:
+                    content = "<pre>" + f.read() + "</pre>"
+            case _:
+                print(f"[!] Skipping unsupported file type: {file}")
+                continue
+        
+        
     
-    async def markdown_route(request: Request, content=content):
-        return templates.TemplateResponse("markdown.html", {"request": request, "content": content, "routes": top_level_routes})
-    app.add_api_route(route, markdown_route, response_class=HTMLResponse)
-    
-    if route.count("/") == 1:
-        top_level_routes.append({"name": route.strip("/"), "url": route.lower()})
+        if route_path == "/index":
+            if not template:
+                print(f"[!] Skipping 'index' page because full HTML files cannot be used for the intro content.")
+                continue
+            intro_content = content
+        else:
+            pages_files[route_path] = True
+            if template:
+                async def template_route(request: Request, content=content):
+                    return templates.TemplateResponse("markdown.html", {"request": request, "content": content, "routes": top_level_routes})
+                app.add_api_route(route_path, template_route, response_class=HTMLResponse)
+            else:
+                async def full_html_route(request: Request, content=content):
+                    return Response(content=content, media_type="text/html")
+                app.add_api_route(route_path, full_html_route, response_class=HTMLResponse)
+            
+            if settings.show_routes_in_nav and route_path.count("/") == 1:
+                top_level_routes.append({"name": route_path.strip("/"), "url": route_path.lower()})
+
 
 
 # --- CACHING SETUP (Existing Logic) ---
