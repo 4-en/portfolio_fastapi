@@ -72,6 +72,11 @@ class SiteConfig(BaseModel):
 def uncrawl(s:str) -> str:
     """Simple obfuscation to hide email and phone from basic crawlers."""
     s = s.replace("@", " ]at[ ").replace(".", " ]dot[ ")
+    s = s.replace(",", " ]comma[ ")
+    
+    s = s.replace("+49", " ]DE[ ").replace("+1", " ]US[ ")
+    s = s.replace("+44", " ]UK[ ").replace("+33", " ]FR[ ")
+    
     s = reversed(s)
     
     # to base64
