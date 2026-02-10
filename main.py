@@ -294,6 +294,9 @@ async def impressum(request: Request):
 async def privacy(request: Request):
     return templates.TemplateResponse("privacy.html", {"request": request, "routes": top_level_routes, "theme": settings.theme})
 
+@app.get("/fastblog", response_class=HTMLResponse)
+async def fastblog_info(request: Request):
+    return templates.TemplateResponse("fastblog.html", {"request": request, "routes": top_level_routes, "theme": settings.theme})
 
 # --- AUTH ROUTES (Login/Logout) ---
 

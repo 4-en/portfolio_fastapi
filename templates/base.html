@@ -44,8 +44,11 @@
     <footer>
         <p>
             &copy; {{ config.copyright_year }} {{ config.author_name }} -
-            <a href="/impressum">IMPRINT</a> |
-            <a href="/privacy">PRIVACY POLICY</a>
+            <a href="/impressum">Imprint</a> |
+            <a href="/privacy">Privacy Policy</a>
+            {% if config.show_attribution %}
+                | <a href="/fastblog">FastBlog</a>
+            {% endif %}
         </p>
     </footer>
     <script src="/static/js/instant.js"></script>

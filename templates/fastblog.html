@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>About this Site</h1>
+<p>
+    This site is powered by FastBlog, a minimalist blogging platform built with FastAPI and Jinja2.
+    It is designed as a personal homepage, portfolio, and blog, showcasing projects, thoughts, and updates in a clean and efficient manner.
+</p>
+<p>
+    The site features a simple, responsive design with a focus on markdown content, making it easy to manage posts via an included admin interface.
+</p>
+<p>
+    Key features of FastBlog include:
+</p>
+<ul>
+    <li><strong>FastAPI Framework:</strong> High-performance asynchronous web framework.</li>
+    <li><strong>SQLite Database:</strong> Zero-configuration database for storing posts and pages.</li>
+    <li><strong>Markdown Support:</strong> Write content in Markdown; the engine renders it to HTML.</li>
+    <li><strong>Admin Interface:</strong> Built-in dashboard to create, edit, and delete posts securely.</li>
+    <li><strong>Session Authentication:</strong> Secure login system with hashed passwords and session management.</li>
+    <li><strong>Caching Strategy:</strong> Implements server-side caching for static files and pages to optimize load times and client-side preloading.</li>
+    <li><strong>CLI Configuration:</strong> Includes a command-line utility for easy initial setup.</li>
+    <li><strong>Customizable Themes:</strong> Supports multiple themes with a simple configuration switch.</li>
+</ul>
+
+<p>
+    The source code for FastBlog is available on GitHub, and contributions are welcome.
+    This is a personal project and therefore may not be suitable for production use without further enhancements, such as improved security measures and scalability optimizations.
+</p>
+<p>
+    This project is open-source and licensed under the Apache License 2.0.
+</p>
+<p>
+    For further information about the project, please visit the <a href="https://github.com/4-en/FastBlog">GitHub repository</a>.
+</p>
+
+<a class="return-home" href="/">
+    Back
+</a>
+{% endblock %}

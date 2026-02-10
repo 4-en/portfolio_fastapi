@@ -1,27 +1,23 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>IMPRINT</h1>
+<h1>Imprint</h1>
 <p>Information according to § 5 DDG:</p>
 <div style="border: 1px solid var(--text-color); padding: 20px;">
-    <p><strong>OPERATOR:</strong><br>
+    <p><strong>Operator:</strong><br>
        <span onclick="decryptText(this)" class="uncrawl" data-enc="{{ config.legal_name }}">[ laever ot kcilC ]</span><br>
        <span onclick="decryptText(this)" class="uncrawl" data-enc="{{ config.legal_address }}">[ laever ot kcilC ]</span>
     </p>
-    <p><strong>CONTACT:</strong><br>
+    <p><strong>Contact:</strong><br>
        Email: <span onclick="decryptText(this)" class="uncrawl" data-enc="{{ config.legal_email }}">[ laever ot kcilC ]</span><br>
        Phone: <span onclick="decryptText(this)" class="uncrawl" data-enc="{{ config.legal_phone }}">[ laever ot kcilC ]</span>
     </p>
-    <p><strong>RESPONSIBLE FOR CONTENT:</strong><br>
+    <p><strong>Responsible for Content:</strong><br>
        <span onclick="decryptText(this)" class="uncrawl" data-enc="{{ config.legal_name }}">[ laever ot kcilC ]</span><br>
        According to § 18 MStV.
     </p>
 </div>
 <br>
-
-<script>
-    console.log("Script executed...");
-</script>
 <a class="return-home" href="/">
     Back
 </a>
