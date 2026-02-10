@@ -21,7 +21,21 @@ settings = load_config()
 # In production, this should be in your config file.
 SECRET_KEY = getattr(settings, "secret_key", secrets.token_hex(32))
 
-app = FastAPI()
+app = FastAPI(
+    title=settings.site_name,
+    description=settings.site_description,
+    version="1.0.0",
+    contact={
+        "name": settings.author_name,
+        "email": settings.legal_email,
+    },
+    license_info={
+        "name": f"Copyright {settings.copyright_year} {settings.author_name}",
+    },
+    docs_url=None,  # Disable default docs
+    redoc_url=None,
+    openapi_url=None
+)
 
 # Add Session Middleware (Enables request.session)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
@@ -127,6 +141,16 @@ intro_content = ""
 pages_files = {}
 top_level_routes = []
 
+def create_pages_route(content, template):
+    if template:
+        async def template_route(request: Request):
+            return templates.TemplateResponse("markdown.html", {"request": request, "content": content, "routes": top_level_routes, "theme": settings.theme})
+        return template_route
+    else:
+        async def full_html_route(_: Request):
+            return Response(content=content, media_type="text/html")
+        return full_html_route
+
 for root, dirs, files in os.walk(PAGES_DIR):
     for file in files:
         
@@ -182,14 +206,7 @@ for root, dirs, files in os.walk(PAGES_DIR):
             intro_content = content
         else:
             pages_files[route_path] = True
-            if template:
-                async def template_route(request: Request, content=content):
-                    return templates.TemplateResponse("markdown.html", {"request": request, "content": content, "routes": top_level_routes})
-                app.add_api_route(route_path, template_route, response_class=HTMLResponse)
-            else:
-                async def full_html_route(request: Request, content=content):
-                    return Response(content=content, media_type="text/html")
-                app.add_api_route(route_path, full_html_route, response_class=HTMLResponse)
+            app.add_api_route(route_path, create_pages_route(content, template), methods=["GET"])
             
             if settings.show_routes_in_nav and route_path.count("/") == 1:
                 top_level_routes.append({"name": route_path.strip("/"), "url": route_path.lower()})
